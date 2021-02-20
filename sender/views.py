@@ -1,9 +1,12 @@
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from .forms import EmailHistoryForm
 from .models import EmailHistory
 from PIL import Image
 from hashlib import md5
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 
 def send_email(request):
@@ -13,10 +16,14 @@ def send_email(request):
         print('send email : {}'.format(model.send_to))
         sid = create_secret_key(model)
         link = create_image_link(request, sid, model.pk)
-        context = {'email': model.send_to, 'link': link}
-        return render(request, 'sender/complete.html', context=context)
-    context = {'form': form}
-    return render(request, 'sender/index.html', context)
+
+        html_message = render_to_string('sender/email.html', {'link': link})
+        message = EmailMultiAlternatives('sample_mail', 'sample_body', from_email=settings.EMAIL_HOST_USER, to=[model.send_to])
+        message.attach_alternative(html_message, "text/html")
+        message.send()
+
+        return render(request, 'sender/complete.html', context={'email': model.send_to, 'link': link})
+    return render(request, 'sender/index.html', context={'form': form})
 
 
 def add_opened_email_history(request):
